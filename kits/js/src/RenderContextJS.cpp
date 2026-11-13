@@ -864,13 +864,17 @@ napi_value RenderContextJS::CreateScene(NapiApi::FunctionContext<>& ctx)
         return promise.Reject(err);
     }
 
+    BASE_NS::string uri = NormalizeUri(ExtractUri(ctx));
+    auto sceneManager = CreateSceneManager(uri);
+    if (!sceneManager) {
+        return promise.Reject("Creating scene manager failed");
+    }
+
     const auto jsQ = AcquireJsQueue(env);
     auto queueRefCount = interface_cast<INodeJSTaskQueue>(jsQ);
     if (!queueRefCount) {
         return promise.Reject("Error creating a JS task queue");
     }
-
-    BASE_NS::string uri = NormalizeUri(ExtractUri(ctx));
 
     auto convertToJs = [promise, uri, queueRefCount = BASE_NS::move(queueRefCount)](
                            SCENE_NS::IScene::Ptr scene) mutable {
@@ -878,10 +882,6 @@ napi_value RenderContextJS::CreateScene(NapiApi::FunctionContext<>& ctx)
         queueRefCount->Release();
     };
 
-    auto sceneManager = CreateSceneManager(uri);
-    if (!sceneManager) {
-        return promise.Reject("Creating scene manager failed");
-    }
     auto params = interface_pointer_cast<META_NS::IMetadata>(META_NS::GetObjectRegistry().GetDefaultObjectContext());
     if (params) {
         RenderContextJSPrivate::PopulateCustomParams(params);
